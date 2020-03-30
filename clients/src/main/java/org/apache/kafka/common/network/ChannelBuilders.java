@@ -139,6 +139,9 @@ public class ChannelBuilders {
             case PLAINTEXT:
                 channelBuilder = new PlaintextChannelBuilder(listenerName);
                 break;
+            case BANZAI:
+                channelBuilder = new BanzaiChannelBuilder(listenerName);
+                break;
             default:
                 throw new IllegalArgumentException("Unexpected securityProtocol " + securityProtocol);
         }
