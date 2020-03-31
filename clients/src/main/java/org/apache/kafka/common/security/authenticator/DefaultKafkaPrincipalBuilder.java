@@ -22,11 +22,12 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.network.Authenticator;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.security.auth.AuthenticationContext;
-import org.apache.kafka.common.security.auth.KafkaPrincipal;
-import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
+import org.apache.kafka.common.security.auth.banzaicloud.AuthenticationContextWithOptionalAuthId;
 import org.apache.kafka.common.security.auth.PlaintextAuthenticationContext;
 import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
 import org.apache.kafka.common.security.auth.SslAuthenticationContext;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
+import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
 import org.apache.kafka.common.security.kerberos.KerberosName;
 import org.apache.kafka.common.security.kerberos.KerberosShortNamer;
 
@@ -106,7 +107,10 @@ public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Clos
 
     @Override
     public KafkaPrincipal build(AuthenticationContext context) {
-        if (context instanceof PlaintextAuthenticationContext) {
+        if (context instanceof AuthenticationContextWithOptionalAuthId) {
+            AuthenticationContextWithOptionalAuthId ctx = (AuthenticationContextWithOptionalAuthId) context;
+            return new KafkaPrincipal(KafkaPrincipal.USER_TYPE, ctx.getAuthorizationId());
+        } else if (context instanceof PlaintextAuthenticationContext) {
             if (oldPrincipalBuilder != null)
                 return convertToKafkaPrincipal(oldPrincipalBuilder.buildPrincipal(transportLayer, authenticator));
 
