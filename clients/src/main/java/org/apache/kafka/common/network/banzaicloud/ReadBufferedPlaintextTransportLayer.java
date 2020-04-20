@@ -17,6 +17,7 @@
 package org.apache.kafka.common.network.banzaicloud;
 
 import org.apache.kafka.common.network.PlaintextTransportLayer;
+import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,18 +31,17 @@ import java.nio.channels.SelectionKey;
  */
 public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer {
     private static final Logger log = LoggerFactory.getLogger(ReadBufferedPlaintextTransportLayer.class);
-    private static final int BUFF = 65536;
+    private static final int BUFF = 4;
     private ByteBuffer netReadBuffer;
     private boolean authenticationDone;
 
     public ReadBufferedPlaintextTransportLayer(SelectionKey key) throws IOException {
         super(key);
         netReadBuffer = ByteBuffer.allocate(BUFF);
-        authenticationDone = false;
     }
 
     /**
-     * No buffer shadowing needed
+     * No more buffer duplication needed
      */
     public void authenticationDone() {
         authenticationDone = true;
@@ -87,9 +87,10 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
     @Override
     public int read(ByteBuffer dst) throws IOException {
         log.trace("dst: {}", new BufferDetails(dst));
+        netReadBuffer = Utils.ensureCapacity(netReadBuffer, dst.capacity());
 
         int read = 0;
-        if (hasBytesBuffered()) {
+        if (netReadBuffer.position() != 0) {
             read += readFromNetReadBuffer(dst);
         }
         log.trace("dst: {}", new BufferDetails(dst));
@@ -107,7 +108,7 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
         }
         log.trace("dst: {}", new BufferDetails(dst));
 
-        if (netread < 0 && read == 0 && !hasBytesBuffered()) {
+        if (netread < 0 && read == 0) {
             throw new EOFException("EOF during read");
         }
 
@@ -190,10 +191,10 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
 
         @Override
         public String toString() {
-            return  "pos: " + bb.position() +
-                    "limit: " + bb.limit() +
-                    "rem: " + bb.remaining() +
-                    "cap: " + bb.capacity();
+            return  " pos: " + bb.position() +
+                    " limit: " + bb.limit() +
+                    " rem: " + bb.remaining() +
+                    " cap: " + bb.capacity();
         }
     }
 }
