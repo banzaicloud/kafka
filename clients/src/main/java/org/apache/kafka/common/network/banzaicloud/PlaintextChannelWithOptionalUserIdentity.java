@@ -105,12 +105,12 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
         @Override
         synchronized public void authenticate() throws IOException {
             if (authorizationId != null) {
-                log.info("Already authenticated");
+                log.debug("Already authenticated");
                 return;
             }
 
             if (limiterOk) {
-                log.info("Authenticating: phase[2/2]");
+                log.debug("Authenticating: phase[2/2]");
                 buffer = ByteBuffer.allocate(limiter);
                 log.debug("Buffer allocated for payload with size: " + limiter);
                 transportLayer.read(buffer);
@@ -122,16 +122,16 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
                 log.debug("Received payload message: " + text);
 
                 if (hasBZCPrefix(text)) {
-                    log.info("BZC prefix: present");
+                    log.debug("BZC prefix: present");
                     authorizationId = extractAuthId(text);
                     transportLayer.setPos(limiter);
                 } else {
-                    log.info("BZC prefix: not present");
+                    log.debug("BZC prefix: not present");
                     authorizationId = KafkaPrincipal.ANONYMOUS.getName();
                 }
                 transportLayer.authenticationDone();
             } else {
-                log.info("Authenticating: phase[1/2]");
+                log.debug("Authenticating: phase[1/2]");
                 if (buffer == null) {
                     log.debug("Buffer allocated with size: " + BZC_PKG_SIZE);
                     buffer = ByteBuffer.allocate(BZC_PKG_SIZE);
