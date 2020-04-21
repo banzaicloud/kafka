@@ -124,7 +124,7 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
                 if (hasBZCPrefix(text)) {
                     log.debug("BZC prefix: present");
                     authorizationId = extractAuthId(text);
-                    transportLayer.setPos(limiter);
+                    transportLayer.ignoreExtraPayloadFrom(limiter);
                 } else {
                     log.debug("BZC prefix: not present");
                     authorizationId = KafkaPrincipal.ANONYMOUS.getName();
@@ -147,6 +147,7 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
                     limiter = buffer.getShort(0) + BZC_PKG_SIZE;
                     limiterOk = true;
                     log.debug("Payload length present, len: " + limiter);
+                    transportLayer.gotPayloadLength();
                 } else {
                     log.debug("Payload length not present, went with anonymous");
                     authorizationId = KafkaPrincipal.ANONYMOUS.getName();
