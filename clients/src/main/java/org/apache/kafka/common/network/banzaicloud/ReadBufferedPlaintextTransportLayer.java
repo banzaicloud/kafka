@@ -31,9 +31,10 @@ import java.nio.channels.SelectionKey;
  */
 public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer {
     private static final Logger log = LoggerFactory.getLogger(ReadBufferedPlaintextTransportLayer.class);
-    private static final int BUFF = 4;
+    private static final int BUFF = 2;
     private ByteBuffer netReadBuffer;
     private boolean authenticationDone;
+    private boolean skipOnce;
 
     public ReadBufferedPlaintextTransportLayer(SelectionKey key) throws IOException {
         super(key);
@@ -45,6 +46,13 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
      */
     public void authenticationDone() {
         authenticationDone = true;
+    }
+
+    /**
+     * Ignore buffer content once
+     */
+    public void gotPayloadLength() {
+        skipOnce = true;
     }
 
     /**
@@ -87,10 +95,10 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
     @Override
     public int read(ByteBuffer dst) throws IOException {
         log.trace("dst: {}", new BufferDetails(dst));
-        netReadBuffer = Utils.ensureCapacity(netReadBuffer, dst.capacity());
+        netReadBuffer = Utils.ensureCapacity(netReadBuffer, netReadBuffer.capacity() + (dst.remaining() - netReadBuffer.remaining()));
 
         int read = 0;
-        if (netReadBuffer.position() != 0) {
+        if (hasBytesBuffered()) {
             read += readFromNetReadBuffer(dst);
         }
         log.trace("dst: {}", new BufferDetails(dst));
@@ -108,7 +116,7 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
         }
         log.trace("dst: {}", new BufferDetails(dst));
 
-        if (netread < 0 && read == 0) {
+        if (netread < 0 && read == 0 && !hasBytesBuffered()) {
             throw new EOFException("EOF during read");
         }
 
@@ -117,22 +125,40 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
     }
 
     private int readFromNetReadBuffer(ByteBuffer dst) {
-        ByteBuffer workOnBuffer = netReadBuffer;
+        ByteBuffer buffer = createBuffer();
+        int copied = copyBuffer(buffer, dst);
+        compactBuffer(buffer);
+        return copied;
+    }
+
+    private ByteBuffer createBuffer() {
+        ByteBuffer buff = netReadBuffer;
         if (!authenticationDone) {
-            workOnBuffer = netReadBuffer.duplicate();
+            buff = netReadBuffer.duplicate();
+            if (skipOnce) {
+                skipOnce = false;
+                buff.position(0);
+            }
         }
-        workOnBuffer.flip();
-        int remaining = Math.min(workOnBuffer.remaining(), dst.remaining());
+        return buff;
+    }
+
+    private int copyBuffer(ByteBuffer from, ByteBuffer to) {
+        from.flip();
+        int remaining = Math.min(from.remaining(), to.remaining());
         if (remaining > 0) {
-            int oldLimit = workOnBuffer.limit();
-            workOnBuffer.limit(workOnBuffer.position() + remaining);
-            dst.put(workOnBuffer);
-            workOnBuffer.limit(oldLimit);
-        }
-        if (authenticationDone) {
-            workOnBuffer.compact();
+            int oldLimit = from.limit();
+            from.limit(from.position() + remaining);
+            to.put(from);
+            from.limit(oldLimit);
         }
         return remaining;
+    }
+
+    private void compactBuffer(ByteBuffer buffer) {
+        if (authenticationDone) {
+            buffer.compact();
+        }
     }
 
     private int readSocket() throws IOException {
@@ -165,7 +191,7 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
      *
      * @param pos the buffer position in front of we want to get rid of buffer's content
      */
-    public void setPos(int pos) {
+    public void ignoreExtraPayloadFrom(int pos) {
         log.trace("net buffer: {}", new BufferDetails(netReadBuffer));
 
         netReadBuffer.flip();
