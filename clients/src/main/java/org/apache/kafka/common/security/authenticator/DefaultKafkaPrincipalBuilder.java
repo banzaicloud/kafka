@@ -16,26 +16,25 @@
  */
 package org.apache.kafka.common.security.authenticator;
 
-import javax.security.auth.x500.X500Principal;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.network.Authenticator;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.security.auth.AuthenticationContext;
-import org.apache.kafka.common.security.auth.banzaicloud.AuthenticationContextWithOptionalAuthId;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
+import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
 import org.apache.kafka.common.security.auth.PlaintextAuthenticationContext;
 import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
 import org.apache.kafka.common.security.auth.SslAuthenticationContext;
-import org.apache.kafka.common.security.auth.KafkaPrincipal;
-import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
+import org.apache.kafka.common.security.auth.banzaicloud.AuthenticationContextWithOptionalAuthId;
 import org.apache.kafka.common.security.kerberos.KerberosName;
 import org.apache.kafka.common.security.kerberos.KerberosShortNamer;
+import org.apache.kafka.common.security.ssl.SslPrincipalMapper;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
+import javax.security.auth.x500.X500Principal;
 import javax.security.sasl.SaslServer;
-import org.apache.kafka.common.security.ssl.SslPrincipalMapper;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.security.Principal;
@@ -109,7 +108,12 @@ public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Clos
     public KafkaPrincipal build(AuthenticationContext context) {
         if (context instanceof AuthenticationContextWithOptionalAuthId) {
             AuthenticationContextWithOptionalAuthId ctx = (AuthenticationContextWithOptionalAuthId) context;
-            return new KafkaPrincipal(KafkaPrincipal.USER_TYPE, ctx.getAuthorizationId());
+            try {
+                return new KafkaPrincipal(KafkaPrincipal.USER_TYPE, sslPrincipalMapper.getName(ctx.getAuthorizationId()));
+            } catch (IOException e) {
+                throw new KafkaException("Failed to map name for '" + ctx.getAuthorizationId() +
+                        "' based on SSL principal mapping rules.", e);
+            }
         } else if (context instanceof PlaintextAuthenticationContext) {
             if (oldPrincipalBuilder != null)
                 return convertToKafkaPrincipal(oldPrincipalBuilder.buildPrincipal(transportLayer, authenticator));
