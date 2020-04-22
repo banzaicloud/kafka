@@ -17,6 +17,7 @@
 package org.apache.kafka.common.network.banzaicloud;
 
 import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.memory.MemoryPool;
 import org.apache.kafka.common.network.Authenticator;
 import org.apache.kafka.common.network.ChannelBuilder;
@@ -27,6 +28,7 @@ import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
 import org.apache.kafka.common.security.auth.banzaicloud.AuthenticationContextWithOptionalAuthId;
+import org.apache.kafka.common.security.ssl.SslPrincipalMapper;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +49,7 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
     private static final Logger log = LoggerFactory.getLogger(PlaintextChannelWithOptionalUserIdentity.class);
     private final ListenerName listenerName;
     private Map<String, ?> configs;
+    private SslPrincipalMapper sslPrincipalMapper;
 
     public PlaintextChannelWithOptionalUserIdentity(ListenerName listenerName) {
         this.listenerName = listenerName;
@@ -58,13 +61,16 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
     @Override
     public void configure(Map<String, ?> configs) {
         this.configs = configs;
+        String sslPrincipalMappingRules = (String) configs.get(BrokerSecurityConfigs.SSL_PRINCIPAL_MAPPING_RULES_CONFIG);
+        if (sslPrincipalMappingRules != null)
+            sslPrincipalMapper = SslPrincipalMapper.fromRules(sslPrincipalMappingRules);
     }
 
     public KafkaChannel buildChannel(String id, SelectionKey key, int maxReceiveSize,
                                      MemoryPool memoryPool, ChannelMetadataRegistry metadataRegistry) throws KafkaException {
         try {
             ReadBufferedPlaintextTransportLayer transportLayer = new ReadBufferedPlaintextTransportLayer(key);
-            Supplier<Authenticator> authenticatorCreator = () -> new PrefixLookupAuthenticator(configs, transportLayer, listenerName);
+            Supplier<Authenticator> authenticatorCreator = () -> new PrefixLookupAuthenticator(configs, transportLayer, listenerName, sslPrincipalMapper);
             return new KafkaChannel(id, transportLayer, authenticatorCreator, maxReceiveSize,
                     memoryPool != null ? memoryPool : MemoryPool.NONE, metadataRegistry);
         } catch (Exception e) {
@@ -96,9 +102,10 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
         private boolean limiterOk;
         private int limiter;
 
-        public PrefixLookupAuthenticator(Map<String, ?> configs, ReadBufferedPlaintextTransportLayer transportLayer, ListenerName listenerName) {
+        public PrefixLookupAuthenticator(Map<String, ?> configs, ReadBufferedPlaintextTransportLayer transportLayer,
+                                         ListenerName listenerName, SslPrincipalMapper sslPrincipalMapper) {
             this.transportLayer = transportLayer;
-            this.principalBuilder = ChannelBuilders.createPrincipalBuilder(configs, transportLayer, this, null, null);
+            this.principalBuilder = ChannelBuilders.createPrincipalBuilder(configs, transportLayer, this, null, sslPrincipalMapper);
             this.listenerName = listenerName;
         }
 
