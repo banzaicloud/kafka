@@ -116,10 +116,10 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
         }
         log.trace("dst: {}", new BufferDetails(dst));
 
-        if (netread < 0 && read == 0 && !hasBytesBuffered()) {
-            log.trace("0 bytes from socket AND 0 bytes from buffer AND no more bytes in buffer");
-            throw new EOFException("EOF during read");
-        }
+//        if (netread < 0 && read == 0 && !hasBytesBuffered()) {
+//            log.trace("0 bytes from socket AND 0 bytes from buffer AND no more bytes in buffer");
+//            throw new EOFException("EOF during read");
+//        }
 
         log.trace("byte read: " + read);
         return read;
