@@ -81,7 +81,7 @@ public class PlaintextChannelWithOptionalUserIdentity implements ChannelBuilder 
 
     /**
      * A basic authenticator implementation which differs from
-     * {@link org.apache.kafka.common.network.PlaintextChannelBuilder.PlaintextAuthenticator}
+     * {@link org.apache.kafka.common.network.PlaintextChannelBuilder::PlaintextAuthenticator}
      * in only a few parts. It implements {@link PrefixLookupAuthenticator ::authenticate} as a pre-processor of
      * data received right after a connection was established with broker.
      * The {@link PrefixLookupAuthenticator ::complete} method indicates the above mentioned process' state.
