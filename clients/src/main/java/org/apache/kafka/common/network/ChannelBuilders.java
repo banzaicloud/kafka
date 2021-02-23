@@ -149,7 +149,7 @@ public class ChannelBuilders {
                         logContext);
                 break;
             case PLAINTEXT:
-                channelBuilder = new PlaintextChannelWithOptionalUserIdentity(listenerName);
+                channelBuilder = new PlaintextChannelBuilder(listenerName);
                 break;
             default:
                 throw new IllegalArgumentException("Unexpected securityProtocol " + securityProtocol);
