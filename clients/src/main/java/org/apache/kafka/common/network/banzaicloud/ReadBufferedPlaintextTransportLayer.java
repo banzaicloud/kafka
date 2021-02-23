@@ -90,7 +90,10 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
     }
 
     /**
-     * {@inheritDoc}
+     * @param dst The buffer into which bytes are to be transferred
+     * @return The number of bytes read, possible zero or -1 if the channel has reached end-of-stream
+     *         and no more data is available
+     * @throws IOException if some other I/O error occurs
      */
     @Override
     public int read(ByteBuffer dst) throws IOException {
@@ -117,7 +120,8 @@ public class ReadBufferedPlaintextTransportLayer extends PlaintextTransportLayer
         log.trace("dst: {}", new BufferDetails(dst));
 
         if (netread < 0 && read == 0 && !hasBytesBuffered()) {
-            throw new EOFException("EOF during read");
+            log.trace("channel has reached end-of-stream");
+            return -1;
         }
 
         log.trace("byte read: " + read);
